@@ -1,0 +1,71 @@
+# gate.yaml — 天气查询 Agent 退化信号门禁（终版 6 信号 + 4 共享规则）
+# 用法: python gate.py cases/baseline.json --config gate.yaml --out report.md
+# level 语义: block = 触发则退出码 1；warn = 仅记录，不影响退出码
+
+version: 1
+agent: weather-query-agent
+
+# ===== 共享判定规则 R1-R4 =====
+shared_rules:
+  R1_temp_extract:
+    description: '温度提取（宽松）：信号 1 比对、信号 6 剔除共用；提取值含负号与小数，比对前转 float'
+    pattern: '-?\d+(\.\d+)?\s*(℃|°C|度)'
+  R2_temp_format:
+    description: '温度格式（严格）：信号 2 检查用；输出规范要求摄氏度，单位必须为 ℃'
+    pattern: '-?\d+(\.\d+)?\s*℃'
+  R3_empty_input:
+    description: '空输入判定：case 标记优先，strip 兜底；运行时不做启发式猜测'
+    case_flag: input_type
+    case_value: empty
+    strip_fallback: true
+  R4_city_check:
+    description: '城市名判定：输出必须包含输入原文的城市名子串（写死，无别名表）'
+    mode: input_literal_substring
+
+# ===== 6 条退化信号 =====
+signals:
+  - id: S1
+    name: '温度与工具返回不一致'
+    description: 'R1 宽松提取输出温度并转 float，与成功返回的 temp_c 不等；或全部调用失败时输出仍含温度（编造）'
+    observe: [final_output, tool_calls]
+    level: block
+    requires: [tool_result]
+  - id: S2
+    name: '最终答案缺少/错必要字段'
+    description: '前置：非空输入（R3）。触发：输出不含输入原文城市名子串（R4），或无 R2 匹配的摄氏温度'
+    observe: [final_output]
+    level: block
+  - id: S3
+    name: '工具序列偏离约定'
+    description: '任一子形态触发即 BLOCK：a) 非 get_weather 调用 ≥ 1；b) get_weather 调用 ≥ call_count_threshold；c) 首次成功后仍出现 get_weather 调用（需轨迹含成败状态）'
+    observe: [tool_calls]
+    level: block
+    call_count_threshold: 3
+  - id: S4
+    name: '空输入未按约定处理'
+    description: '前置：R3 判定为空输入。触发：工具调用 ≥ 1，或输出 strip 空白与结尾标点后不等于 expected_output'
+    observe: [tool_calls, final_output]
+    level: block
+    expected_output: '请提供城市名'
+  - id: S5
+    name: 'token 涨幅超 50%'
+    description: '同输入 total_tokens > baseline × threshold_ratio；无 baseline 按 no_baseline_policy 处理'
+    observe: [cost]
+    level: warn
+    threshold_ratio: 1.5
+    no_baseline_policy: warn
+  - id: S6
+    name: '输出缺少穿衣建议'
+    description: '前置：存在成功的 get_weather 调用。触发：R4 剔除城市名、R1 剔除温度子串后，剩余不足 min_chars 字符或无实质字符'
+    observe: [final_output]
+    level: warn
+    min_chars: 5
+
+# ===== baseline（键 = user_input strip 后的原文；无对应键时按 no_baseline_policy=warn） =====
+baselines:
+  北京: 200
+
+# ===== 退出策略 =====
+exit_policy:
+  block: 1
+  warn_only: 0

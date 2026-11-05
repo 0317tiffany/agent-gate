@@ -1,0 +1,14 @@
+{
+  "user_input": "",
+  "input_type": "empty",
+  "tool_calls": [
+    {
+      "tool": "get_weather",
+      "args": { "city": "" },
+      "result": null,
+      "success": false
+    }
+  ],
+  "final_output": "请提供城市名",
+  "total_tokens": 50
+}

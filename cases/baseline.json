@@ -1,0 +1,14 @@
+{
+  "user_input": "北京",
+  "input_type": "normal",
+  "tool_calls": [
+    {
+      "tool": "get_weather",
+      "args": { "city": "北京" },
+      "result": { "temp_c": 22, "condition": "晴" },
+      "success": true
+    }
+  ],
+  "final_output": "北京 22℃，今天晴朗，适合穿薄外套。",
+  "total_tokens": 200
+}
