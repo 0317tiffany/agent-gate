@@ -47,3 +47,4 @@ python gate.py cases/empty_violation.json --out report.md   # S4 block，exit 1
 ```
 
 退出码约定：存在 block 级触发 = 1；仅 warn 或全绿 = 0。
+测试门禁拦截
